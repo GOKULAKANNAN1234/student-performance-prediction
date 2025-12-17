@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance Prediction</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Student Performance Dashboard</h1>
+            <p>AI-Powered Academic Forecasting</p>
+        </header>
+
+        <main>
+            <!-- Model Performance Section -->
+            <section class="card model-stats">
+                <h2>Model Performance</h2>
+                <div class="stats-grid">
+
+                    <div class="stat-item">
+                        <span class="stat-label">Training Size</span>
+                        <span class="stat-value">{{ students|length }} Students</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Actions -->
+            <section class="actions">
+                <button id="predictBtn" class="btn-primary">Generate Predictions (Exam 5)</button>
+            </section>
+
+            <!-- Predictions Result Section -->
+            <section id="prediction-section" class="card hidden">
+                <h2>Prediction Results</h2>
+
+                <!-- Chart Container -->
+                <div class="chart-container" style="position: relative; height:40vh; width:100%; margin-bottom: 2rem;">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Exam 1</th>
+                                <th>Exam 2</th>
+                                <th>Exam 3</th>
+                                <th>Exam 4</th>
+                                <th>Exam 5 Score</th>
+                                <th>Risk Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        let myChart = null;
+
+        document.getElementById('predictBtn').addEventListener('click', function () {
+            fetch('/predict')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector('#resultsTable tbody');
+                    tbody.innerHTML = ''; // Clear previous
+
+                    const labels = [];
+                    const scores = [];
+                    const backgroundColors = [];
+
+                    data.forEach(row => {
+                        // Table Row
+                        const tr = document.createElement('tr');
+                        const RiskClass = row.Risk_Level.replace(' ', '-').toLowerCase(); // e.g., low-risk
+
+                        tr.innerHTML = `
+                            <td>${row.Student_ID}</td>
+                            <td>${row.Exam1}</td>
+                            <td>${row.Exam2}</td>
+                            <td>${row.Exam3}</td>
+                            <td>${row.Exam4}</td>
+                            <td><strong>${row.Predicted_Exam5}</strong></td>
+                            <td><span class="badge ${RiskClass}">${row.Risk_Level}</span></td>
+                        `;
+                        tbody.appendChild(tr);
+
+                        // Chart Data
+                        labels.push(row.Student_ID);
+                        scores.push(row.Predicted_Exam5);
+
+                        // Color coding for chart bars based on risk
+                        if (row.Risk_Level === 'High Risk') backgroundColors.push('#ef4444');
+                        else if (row.Risk_Level === 'Moderate Risk') backgroundColors.push('#f59e0b');
+                        else backgroundColors.push('#10b981');
+                    });
+
+                    document.getElementById('prediction-section').classList.remove('hidden');
+
+                    // Render Chart
+                    const ctx = document.getElementById('predictionChart').getContext('2d');
+
+                    if (myChart) {
+                        myChart.destroy();
+                    }
+
+                    myChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Exam 5 Score',
+                                data: scores,
+                                backgroundColor: backgroundColors,
+                                borderRadius: 5,
+                                borderSkipped: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Student Performance Overview (Exam 5)'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {
+                                        display: true,
+                                        text: 'Score'
+                                    }
+                                }
+                            },
+                            animation: {
+                                duration: 800,
+                                easing: 'easeOutQuart'
+                            }
+                        }
+                    });
+                });
+        });
+    </script>
+</body>
+
+</html>
